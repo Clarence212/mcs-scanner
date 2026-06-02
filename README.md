@@ -17,7 +17,8 @@ A multi-threaded Minecraft server port scanner and bot joiner that runs in Power
 - **SCAN RANGE** - Controls how many ports will be checked starting from the initial port. Larger ranges increase scan time proportionally.
 - **SPEED SETTINGS** - Adjusts how quickly the scan runs. Higher speeds may increase CPU usage, and the fastest mode can reach very high request rates depending on your system performance.
 
-<img width="355" height="236" alt="Screenshot 2026-06-02 212927" src="https://github.com/user-attachments/assets/644f802c-5b0a-4a25-ba75-ce51a68e0c06" />
+<img width="451" height="336" alt="image" src="https://github.com/user-attachments/assets/56d1249d-5361-464d-851d-7b81448d31c3" />
+
 
   
 
