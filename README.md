@@ -8,6 +8,7 @@ A multi-threaded Minecraft server port scanner and bot joiner that runs in Power
 - **Server Status Retrieval**: Queries servers for MOTD, online player count, and protocol version.
 - **Bot Join Simulation**: Attempts a full connection handshake to determine if a server is running in online mode (authenticated) or offline mode.
 - **Logs**: Automatically exports found servers to time-stamped text files.
+ <img width="864" height="383" alt="Screenshot 2026-06-02 212704" src="https://github.com/user-attachments/assets/0097f66b-190b-4117-a952-356d549c00cd" />
 
 ## Guide
 - **IP** - This is where you enter the target server’s IP. If the server is hosted, you might see more results since multiple instances can run on the same address.
@@ -15,6 +16,11 @@ A multi-threaded Minecraft server port scanner and bot joiner that runs in Power
 - **ONLINE SERVERS ONLY** - When enabled, the results will only include servers that responded successfully. If turned off, both active and inactive results will be shown, this can make the log file more cluttered.
 - **SCAN RANGE** - Controls how many ports will be checked starting from the initial port. Larger ranges increase scan time proportionally.
 - **SPEED SETTINGS** - Adjusts how quickly the scan runs. Higher speeds may increase CPU usage, and the fastest mode can reach very high request rates depending on your system performance.
+
+<img width="355" height="236" alt="Screenshot 2026-06-02 212927" src="https://github.com/user-attachments/assets/644f802c-5b0a-4a25-ba75-ce51a68e0c06" />
+
+  
+
 
 
 ## Requirements
