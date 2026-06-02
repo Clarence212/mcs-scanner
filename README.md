@@ -10,7 +10,7 @@ A multi-threaded Minecraft server port scanner and bot joiner that runs in Power
 - **Logs**: Automatically exports found servers to time-stamped text files.
  <img width="864" height="383" alt="Screenshot 2026-06-02 212704" src="https://github.com/user-attachments/assets/0097f66b-190b-4117-a952-356d549c00cd" />
 
-## Guide
+## Usage
 - **IP** - This is where you enter the target server’s IP. If the server is hosted, you might see more results since multiple instances can run on the same address.
 - **START PORT** - Defines the first port the scan will check. tho some ports can range from 0 to 65535, minecraft servers sometimes found in higher ranges like 20000-30000, but usually its around 25565.
 - **ONLINE SERVERS ONLY** - When enabled, the results will only include servers that responded successfully. If turned off, both active and inactive results will be shown, this can make the log file more cluttered.
