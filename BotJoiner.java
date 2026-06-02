@@ -4,8 +4,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.zip.InflaterInputStream;
 
 /**
- * Performs a full Minecraft login + play-state entry so the bot
- * actually appears in the server's terminal log.
  *
  * Full flow (protocol 47 / 1.8.9):
  *
