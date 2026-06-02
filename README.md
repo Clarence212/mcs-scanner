@@ -1,6 +1,6 @@
 # Minecraft Server Port Scanner
 
-A multi-threaded Minecraft server port scanner and bot joiner that runs in Powershell and its own GUI. It scans a range of ports on a target IP to find online Minecraft servers, retrieves their status, tests online/offline mode by joining, and logs the results.
+A multi-threaded Minecraft server port scanner and bot joiner. It scans a range of ports on a target IP to find online Minecraft servers, retrieves their status, tests online/offline mode by joining, and logs the results.
 
 ## Feats
 
