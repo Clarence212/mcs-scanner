@@ -14,7 +14,7 @@ A multi-threaded Minecraft server port scanner and bot joiner that runs in Power
 - **IP** - This is where you enter the target server’s IP. If the server is hosted, you might see more results since multiple instances can run on the same address.
 - **START PORT** - Defines the first port the scan will check. tho some ports can range from 0 to 65535, minecraft servers sometimes found in higher ranges like 20000-30000, but usually its around 25565.
 - **ONLINE SERVERS ONLY** - When enabled, the results will only include servers that responded successfully. If turned off, both active and inactive results will be shown, this can make the log file more cluttered.
-- **ATTEMPT BOT JOIN*** - If you want to know whether you can connect to the scanned servers.
+- **ATTEMPT BOT JOIN** - If you want to know whether you can connect to the scanned servers.
 - **SCAN RANGE** - Controls how many ports will be checked starting from the initial port. Larger ranges increase scan time proportionally.
 - **SPEED SETTINGS** - Adjusts how quickly the scan runs. Higher speeds may increase CPU usage, and the fastest mode can reach very high request rates depending on your system performance.
 
