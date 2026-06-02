@@ -13,6 +13,7 @@ public class GUI {
     public static JLabel exitLabel = new JLabel();
     public static JPanel completionPanel = new JPanel();
     private static JButton scanAgainButton;
+    private static Process activeProcess;
 
     public static JTextField ipBox;
     public static JTextField portBox;
@@ -27,30 +28,34 @@ public class GUI {
     public static boolean attemptBotJoin = false;
 
     public static void updateProgress(int done, int total, int foundCount) {
-        SwingUtilities.invokeLater(() -> {
-            int pct = total == 0 ? 0 : (int) ((done / (double) total) * 100);
-            scanProgress.setValue(pct);
-            scanProgress.setString(pct + "%");
-            statsLabel.setText("Scanned: " + done + " / " + total + "  |  Found: " + foundCount);
-        });
+        if (scanProgress != null && statsLabel != null) {
+            SwingUtilities.invokeLater(() -> {
+                int pct = total == 0 ? 0 : (int) ((done / (double) total) * 100);
+                scanProgress.setValue(pct);
+                scanProgress.setString(pct + "%");
+                statsLabel.setText("Scanned: " + done + " / " + total + "  |  Found: " + foundCount);
+            });
+        }
     }
 
     public static void onScanComplete(int foundCount, String timestamp) {
-        SwingUtilities.invokeLater(() -> {
-            scanProgress.setValue(100);
-            scanProgress.setString("Complete!");
-            statsLabel.setText("Done! Found " + foundCount + " servers.");
+        if (scanProgress != null && statsLabel != null) {
+            SwingUtilities.invokeLater(() -> {
+                scanProgress.setValue(100);
+                scanProgress.setString("Complete!");
+                statsLabel.setText("Done! Found " + foundCount + " servers.");
 
-            thePanel.setVisible(false);
-            exitLabel.setText("<html><body style='padding:8px;'>"
-                    + "<b>Scan Complete!</b><br>"
-                    + "Found <b>" + foundCount + "</b> server(s).<br>"
-                    + "Log saved: <i>Output Log " + timestamp + ".log</i>"
-                    + "</body></html>");
-            f.add(completionPanel, BorderLayout.CENTER);
-            f.revalidate();
-            f.repaint();
-        });
+                thePanel.setVisible(false);
+                exitLabel.setText("<html><body style='padding:8px;'>"
+                        + "<b>Scan Complete!</b><br>"
+                        + "Found <b>" + foundCount + "</b> server(s).<br>"
+                        + "Log saved: <i>Output Log " + timestamp + ".log</i>"
+                        + "</body></html>");
+                f.add(completionPanel, BorderLayout.CENTER);
+                f.revalidate();
+                f.repaint();
+            });
+        }
     }
 
     GUI() {
@@ -165,8 +170,10 @@ public class GUI {
 
     private void onStartStop(ActionEvent e) {
         if (startButton.getText().equals("Stop")) {
-            App.stopProcess();
-            resetUI("Stopped. Found: " + App.found.get() + " server(s).");
+            if (activeProcess != null) {
+                activeProcess.destroyForcibly();
+            }
+            resetUI("Stopped.");
             return;
         }
 
@@ -209,33 +216,84 @@ public class GUI {
 
         onlyPrintOnlineServers = onlineCB.isSelected();
         scanSpeed = (String) speedDropDown.getSelectedItem();
-        App.startIP = ipText;
-        App.startPort = portVal;
-        App.endPort = endPortVal;
+        attemptBotJoin = botJoinCB.isSelected();
 
-        int portCount = endPortVal - portVal + 1;
+        final String finalIpText = ipText;
+        final int finalPortVal = portVal;
+        final int finalEndPortVal = endPortVal;
+        final String finalScanSpeed = scanSpeed;
+        final boolean finalOnlyPrintOnline = onlyPrintOnlineServers;
+        final boolean finalAttemptBotJoin = attemptBotJoin;
+
         setControlsEnabled(false);
         startButton.setText("Stop");
-        scanProgress.setValue(0);
-        scanProgress.setString("Working...");
-        statsLabel.setText("Scanned: 0 / " + portCount + "  |  Found: 0");
+        scanProgress.setIndeterminate(true);
+        scanProgress.setString("Scanning...");
+        statsLabel.setText("Scan running in terminal window...");
 
-        Thread scanThread = new Thread(() -> {
+        Thread launchThread = new Thread(() -> {
             try {
-                App.startProcess();
-            } catch (InterruptedException | FileNotFoundException | UnsupportedEncodingException ex) {
+                String javaExe = System.getProperty("java.home")
+                        + java.io.File.separator
+                        + "bin"
+                        + java.io.File.separator
+                        + "java.exe";
+
+                String jarPath = new java.io.File(
+                        GUI.class.getProtectionDomain()
+                                .getCodeSource()
+                                .getLocation()
+                                .toURI()
+                ).getAbsolutePath();
+
+                ProcessBuilder pb;
+                if (jarPath.endsWith(".jar")) {
+                    pb = new ProcessBuilder(
+                            "cmd",
+                            "/c",
+                            "start",
+                            "cmd",
+                            "/k",
+                            javaExe, "-jar", jarPath, "--scan",
+                            finalIpText, String.valueOf(finalPortVal), String.valueOf(finalEndPortVal),
+                            finalScanSpeed, String.valueOf(finalOnlyPrintOnline), String.valueOf(finalAttemptBotJoin)
+                    );
+                } else {
+                    pb = new ProcessBuilder(
+                            "cmd",
+                            "/c",
+                            "start",
+                            "cmd",
+                            "/k",
+                            javaExe, "-cp", jarPath, "GUI", "--scan",
+                            finalIpText, String.valueOf(finalPortVal), String.valueOf(finalEndPortVal),
+                            finalScanSpeed, String.valueOf(finalOnlyPrintOnline), String.valueOf(finalAttemptBotJoin)
+                    );
+                }
+
+                activeProcess = pb.start();
+                activeProcess.waitFor();
+
+                SwingUtilities.invokeLater(() -> {
+                    resetUI("Scan complete.");
+                });
+
+            } catch (Exception ex) {
                 ex.printStackTrace();
-                SwingUtilities.invokeLater(() -> resetUI("Error: " + ex.getMessage()));
+                SwingUtilities.invokeLater(() -> {
+                    resetUI("Error: " + ex.getMessage());
+                });
             }
-        }, "ScanThread");
-        scanThread.setDaemon(true);
-        scanThread.start();
+        });
+        launchThread.setDaemon(true);
+        launchThread.start();
     }
 
     private static void resetUI(String statusMsg) {
         SwingUtilities.invokeLater(() -> {
             startButton.setText("Go!");
             setControlsEnabled(true);
+            scanProgress.setIndeterminate(false);
             scanProgress.setString("Idle");
             scanProgress.setValue(0);
             statsLabel.setText(statusMsg);
@@ -280,6 +338,21 @@ public class GUI {
     }
 
     public static void main(String[] args) {
+        if (args.length > 0 && "--scan".equals(args[0])) {
+            try {
+                App.startIP = args[1];
+                App.startPort = Integer.parseInt(args[2]);
+                App.endPort = Integer.parseInt(args[3]);
+                scanSpeed = args[4];
+                onlyPrintOnlineServers = Boolean.parseBoolean(args[5]);
+                attemptBotJoin = Boolean.parseBoolean(args[6]);
+
+                App.startProcess();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return;
+        }
         SwingUtilities.invokeLater(GUI::new);
     }
 }
