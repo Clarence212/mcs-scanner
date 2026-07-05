@@ -16,7 +16,7 @@ public class App {
     public static long start;
     public static String timeStamp;
     public static volatile boolean stopped = false;
-    public static String botName = "Scanner_1337"; // randomised each scan
+    public static String botName = "Scanner_1337"; // random name for each scan
 
     public static AtomicInteger scanned = new AtomicInteger(0);
     public static AtomicInteger found = new AtomicInteger(0);
@@ -24,6 +24,7 @@ public class App {
     public static PrintWriter writer;
     private static final Object writerLock = new Object();
     private static final Object consoleLock = new Object();
+    private static final List<Thread> joinThreads = Collections.synchronizedList(new ArrayList<>());
 
     public static ExecutorService es;
     private static final String RESET = "\u001B[0m";
@@ -80,10 +81,10 @@ public class App {
             } catch (NumberFormatException ignored) {
             }
         }
-        return 47; // fallback
+        return 47; // default to 1.8.9 if we can't tell
     }
 
-    // Attempt a minecraft server list ping handshake on a single port.
+    // check if there's a minecraft server on this port
     public static void mcHandShake(String inputIp, int inputPort) {
         if (stopped)
             return;
@@ -95,7 +96,7 @@ public class App {
         }
 
         if (rawJson == null) {
-            // if server is offline
+            // server didn't respond
             if (!GUI.onlyPrintOnlineServers) {
                 synchronized (writerLock) {
                     if (writer != null)
@@ -104,26 +105,35 @@ public class App {
                 printOffline(inputIp, inputPort);
             }
         } else {
-            // if server is online
+            // got a response, server is online
             String serverInfo = mcServerInfo(rawJson);
             int detectedProtocol = parseProtocolVersion(rawJson);
+            List<String> onlinePlayers = parsePlayerList(rawJson);
 
             String joinTag = "";
             if (GUI.attemptBotJoin) {
-                BotJoiner.Result jr = BotJoiner.tryJoin(inputIp, inputPort, botName, detectedProtocol);
-                switch (jr) {
-                    case JOINED:
-                        joinTag = " | \u001B[32mOFFLINE MODE\u001B[0m (bot joined!)";
-                        break;
-                    case ONLINE_MODE:
-                        joinTag = " | \u001B[33mONLINE MODE\u001B[0m (auth required)";
-                        break;
-                    case REJECTED:
-                        joinTag = " | \u001B[31mREJECTED\u001B[0m (whitelist/ban)";
-                        break;
-                    default:
-                        joinTag = " | \u001B[2mjoin failed\u001B[0m";
-                        break;
+                BotJoiner.Result firstResult = BotJoiner.tryJoin(inputIp, inputPort, botName, detectedProtocol);
+                joinTag = buildJoinTag(firstResult);
+
+                // keep trying to join in the background at the rate the user set
+                if (GUI.attemptRateMs > 0) {
+                    final String fIp = inputIp;
+                    final int fPort = inputPort;
+                    final int fProto = detectedProtocol;
+                    Thread t = new Thread(() -> {
+                        while (!stopped) {
+                            try {
+                                Thread.sleep(GUI.attemptRateMs);
+                            } catch (InterruptedException ie) {
+                                break;
+                            }
+                            if (stopped) break;
+                            BotJoiner.Result r = BotJoiner.tryJoin(fIp, fPort, botName, fProto);
+                            printJoinAttempt(fIp, fPort, r);
+                        }
+                    });
+                    joinThreads.add(t);
+                    t.start();
                 }
             }
 
@@ -131,12 +141,17 @@ public class App {
             String logEntry = "[ONLINE]  " + inputIp + ":" + inputPort
                     + (serverInfo.isEmpty() ? "" : "  |  " + serverInfo) + plainJoinTag;
             synchronized (writerLock) {
-                if (writer != null)
+                if (writer != null) {
                     writer.println(logEntry);
+                    if (!onlinePlayers.isEmpty())
+                        writer.println("          Players online: " + String.join(", ", onlinePlayers));
+                }
             }
 
             found.incrementAndGet();
             printOnline(inputIp, inputPort, serverInfo + joinTag);
+            if (!onlinePlayers.isEmpty())
+                printPlayerList(onlinePlayers);
         }
 
         int done = scanned.incrementAndGet();
@@ -144,7 +159,7 @@ public class App {
         GUI.updateProgress(done, limit, found.get());
     }
 
-    // originally adapted from https://stackoverflow.com/q/30768091
+    // basic handshake logic adapted from a stackoverflow thread
     public static String internalMCHandShake(String inputIp, int inputPort) throws IOException {
         Socket socket = new Socket();
         socket.setSoTimeout(5000);
@@ -178,8 +193,7 @@ public class App {
                 json = new String(jsonBytes, StandardCharsets.UTF_8);
             }
 
-            // best effort ping/pong, some servers skip it never let it hide an online
-            // server
+            // send ping/pong just in case, but ignore errors so it doesn't break the scan
             try {
                 output.writeByte(0x09);
                 output.writeByte(0x01);
@@ -198,16 +212,20 @@ public class App {
     }
 
     public static void startProcess() throws InterruptedException, FileNotFoundException, UnsupportedEncodingException {
-        // reset state
+        // wipe state for the new scan
         stopped = false;
         scanned.set(0);
         found.set(0);
+        for (Thread t : joinThreads) t.interrupt();
+        joinThreads.clear();
         start = System.nanoTime();
         timeStamp = new SimpleDateFormat("yyyy.MM.dd.HH.mm").format(new Date());
         if (endPort < startPort)
             throw new IllegalArgumentException("End port must be >= start port.");
         limit = endPort - startPort + 1;
-        botName = "Bot_" + (1000 + (int) (Math.random() * 8999));
+        botName = (GUI.customBotName != null && !GUI.customBotName.isEmpty())
+                ? GUI.customBotName
+                : "Bot_" + (1000 + (int) (Math.random() * 8999));
 
         synchronized (writerLock) {
             writer = new PrintWriter("Output Log " + timeStamp + ".log", "UTF-8");
@@ -280,7 +298,7 @@ public class App {
             }
         }
 
-        latch.await(); // blocks background thread until all tasks r finished
+        latch.await(); // wait until everything finishes
         es.shutdown();
 
         long elapsed = (System.nanoTime() - start) / 1_000_000;
@@ -295,7 +313,7 @@ public class App {
         GUI.onScanComplete(found.get(), timeStamp);
     }
 
-    /** Prints a startup banner. */
+    // prints the cool layout banner when starting
     private static void printHeader() {
         synchronized (consoleLock) {
             System.out.println();
@@ -371,11 +389,48 @@ public class App {
         stopped = true;
         if (es != null)
             es.shutdownNow();
+        for (Thread t : joinThreads) t.interrupt();
+        joinThreads.clear();
         synchronized (writerLock) {
             if (writer != null) {
                 writer.println("# Scan stopped by user.");
                 writer.close();
             }
+        }
+    }
+
+    private static String buildJoinTag(BotJoiner.Result jr) {
+        switch (jr) {
+            case JOINED:      return " | " + GREEN  + "OFFLINE MODE" + RESET + " (bot joined!)";
+            case ONLINE_MODE: return " | " + YELLOW + "ONLINE MODE"  + RESET + " (auth required)";
+            case REJECTED:    return " | " + RED    + "REJECTED"     + RESET + " (whitelist/ban)";
+            default:          return " | " + DIM    + "join failed"  + RESET;
+        }
+    }
+
+    private static void printJoinAttempt(String ip, int port, BotJoiner.Result r) {
+        String tag = buildJoinTag(r).replaceFirst("^ \\| ", "");
+        synchronized (consoleLock) {
+            System.out.println("\r" + CYAN + "[JOIN]" + RESET + "  "
+                    + WHITE + BOLD + ip + ":" + port + RESET
+                    + "  " + DIM + tag + RESET);
+        }
+    }
+
+    public static List<String> parsePlayerList(String json) {
+        List<String> players = new ArrayList<>();
+        Matcher m = Pattern.compile("\"sample\":\\[([^\\]]+)\\]").matcher(json);
+        if (m.find()) {
+            Matcher nm = Pattern.compile("\"name\":\"([^\"]+)\"").matcher(m.group(1));
+            while (nm.find()) players.add(nm.group(1));
+        }
+        return players;
+    }
+
+    private static void printPlayerList(List<String> players) {
+        synchronized (consoleLock) {
+            System.out.println("          " + DIM + "Players online: " + RESET
+                    + WHITE + String.join(", ", players) + RESET);
         }
     }
 
