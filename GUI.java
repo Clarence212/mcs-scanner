@@ -90,10 +90,12 @@ public class GUI {
         buttonPanel.add(scanAgainButton);
         completionPanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        f.setSize(270, 238);
+        thePanel.setPreferredSize(new Dimension(270, 200));
+        completionPanel.setPreferredSize(new Dimension(270, 200));
+        f.pack();
         f.setResizable(false);
         f.setLocationRelativeTo(null);
-
+ 
         Image icon = Toolkit.getDefaultToolkit().getImage("src\\icon.png");
         f.setIconImage(icon);
         f.setVisible(true);
@@ -149,7 +151,7 @@ public class GUI {
             botNameField.setEditable(on);
         });
 
-        botNameField = new JTextField();
+        botNameField = new JTextField("Bot_XXXX (random)");
         botNameField.setBounds(138, 76, 124, 20);
         botNameField.setEnabled(false);
         botNameField.setEditable(false);
