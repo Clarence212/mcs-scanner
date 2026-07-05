@@ -166,8 +166,8 @@ public class App {
         socket.connect(new InetSocketAddress(inputIp, inputPort), 3000);
 
         try {
-            DataOutputStream output = new DataOutputStream(socket.getOutputStream());
-            DataInputStream input = new DataInputStream(socket.getInputStream());
+            DataOutputStream output = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+            DataInputStream input = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
 
             byte[] handshake = createHandshakeMessage(inputIp, inputPort);
             writeVarInt(output, handshake.length);
