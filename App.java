@@ -36,11 +36,19 @@ public class App {
     private static final String YELLOW = "\u001B[33m";
     private static final String WHITE = "\u001B[97m";
 
+    private static final Pattern VERSION_PATTERN = Pattern.compile(":\\{\"name\":\"([^\"]+)\"");
+    private static final Pattern ONLINE_VER_PATTERN = Pattern.compile(",\"online\":(\\d+)},\"ver");
+    private static final Pattern ONLINE_SAMPLE_PATTERN = Pattern.compile(",\"online\":(\\d+),\"sample");
+    private static final Pattern MAX_ONLINE_PATTERN = Pattern.compile(":\\{\"max\":(\\d+),\"online");
+    private static final Pattern PROTOCOL_PATTERN = Pattern.compile("\"protocol\":(\\d+)");
+    private static final Pattern SAMPLE_PATTERN = Pattern.compile("\"sample\":\\[([^\\]]+)\\]");
+    private static final Pattern NAME_PATTERN = Pattern.compile("\"name\":\"([^\"]+)\"");
+
     public static String mcServerInfo(String inputJson) {
         String version = "";
         String players = "";
 
-        Matcher m = Pattern.compile(":\\{\"name\":\"([^\"]+)\"").matcher(inputJson);
+        Matcher m = VERSION_PATTERN.matcher(inputJson);
         if (m.find())
             version = m.group(1);
 
@@ -48,14 +56,14 @@ public class App {
         String maxStr = "";
 
         if (!inputJson.contains("\"sample\":[{")) {
-            m = Pattern.compile(",\"online\":(\\d+)},\"ver").matcher(inputJson);
+            m = ONLINE_VER_PATTERN.matcher(inputJson);
         } else {
-            m = Pattern.compile(",\"online\":(\\d+),\"sample").matcher(inputJson);
+            m = ONLINE_SAMPLE_PATTERN.matcher(inputJson);
         }
         if (m.find())
             onlineStr = m.group(1);
 
-        m = Pattern.compile(":\\{\"max\":(\\d+),\"online").matcher(inputJson);
+        m = MAX_ONLINE_PATTERN.matcher(inputJson);
         if (m.find())
             maxStr = m.group(1);
 
@@ -74,7 +82,7 @@ public class App {
     }
 
     public static int parseProtocolVersion(String json) {
-        Matcher m = Pattern.compile("\"protocol\":(\\d+)").matcher(json);
+        Matcher m = PROTOCOL_PATTERN.matcher(json);
         if (m.find()) {
             try {
                 return Integer.parseInt(m.group(1));
@@ -419,9 +427,9 @@ public class App {
 
     public static List<String> parsePlayerList(String json) {
         List<String> players = new ArrayList<>();
-        Matcher m = Pattern.compile("\"sample\":\\[([^\\]]+)\\]").matcher(json);
+        Matcher m = SAMPLE_PATTERN.matcher(json);
         if (m.find()) {
-            Matcher nm = Pattern.compile("\"name\":\"([^\"]+)\"").matcher(m.group(1));
+            Matcher nm = NAME_PATTERN.matcher(m.group(1));
             while (nm.find()) players.add(nm.group(1));
         }
         return players;
