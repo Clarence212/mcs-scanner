@@ -4,16 +4,24 @@ import java.nio.charset.StandardCharsets;
 import java.util.zip.InflaterInputStream;
 
 /**
- * basically this logs a bot in so the server sees it in its logs.
+ * Performs a full Minecraft login + play-state entry so the bot
+ * actually appears in the server's terminal log.
  *
- * flow for protocol 47 (1.8.9):
- * [login]
- * - client send handshake (next = 2)
- * - start logging in
- * - check if compression is needed
- * - success!
- * - if online mode, it wants encryption which we don't do, so we skip
- * - play state: server registers that we joined, we reply to keepalives
+ * Full flow (protocol 47 / 1.8.9):
+ *
+ * [Login state]
+ * C->S Handshake (next_state = 2)
+ * C->S Login Start
+ * S->C 0x03 Set Compression (optional – handle it)
+ * S->C 0x02 Login Success (offline mode)
+ * 0x01 Encryption Req (online mode – abort)
+ * 0x00 Disconnect (rejected)
+ *
+ * [Play state]
+ * S->C 0x01 Join Game ← server logs "X joined the game" here
+ * S->C 0x00 Keep Alive ← must echo back or server kicks us
+ * ...
+ * Bot closes socket → server logs "X left the game"
  */
 public class BotJoiner {
 
@@ -24,7 +32,7 @@ public class BotJoiner {
         FAILED
     }
 
-    private static final int MAX_PLAY_PACKETS = 30; // drop it if we get spammed too much
+    private static final int MAX_PLAY_PACKETS = 30; // give up after this many play packets
 
     public static Result tryJoin(String ip, int port, String botName, int protocolVersion) {
         Socket socket = new Socket();
@@ -45,11 +53,11 @@ public class BotJoiner {
             loginLoop: for (int i = 0; i < 15; i++) {
                 Packet p = readPacket(in, compressionThreshold);
                 switch (p.id) {
-                    case 0x02: // sweet, we're in
+                    case 0x02: // login Success
                         break loginLoop;
                     case 0x01:
                         return Result.ONLINE_MODE;
-                    case 0x00: // kicked / rejected
+                    case 0x00:// disconnect
                         return Result.REJECTED;
                     case 0x03:
                         compressionThreshold = readVarInt(p.data);
@@ -214,8 +222,10 @@ public class BotJoiner {
             dos.writeByte(0x00);
             writeString(dos, name);
             if (protocolVersion >= 759) {
-                // offline servers check whitelist by uuid generated from name
-                // so if we send zeros we get rejected even with the right name
+                // Offline-mode servers derive the player UUID as:
+                // UUID.nameUUIDFromBytes("OfflinePlayer:<name>".getBytes(UTF-8))
+
+                // Sending zeros causes whitelist rejection even if the name is correct.
                 java.util.UUID offlineUUID = java.util.UUID.nameUUIDFromBytes(
                         ("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
                 dos.writeLong(offlineUUID.getMostSignificantBits());
@@ -240,7 +250,7 @@ public class BotJoiner {
         byte[] bytes = buildPacket(dos -> {
             dos.writeByte(0x04);
             writeString(dos, key);
-            dos.writeBoolean(false); // nothing else to send
+            dos.writeBoolean(false); // no payload
         });
         sendPacket(out, bytes, compressionThreshold);
     }

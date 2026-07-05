@@ -16,7 +16,7 @@ public class App {
     public static long start;
     public static String timeStamp;
     public static volatile boolean stopped = false;
-    public static String botName = "Scanner_1337"; // random name for each scan
+    public static String botName = "Scanner_1337"; //randomised each scan
 
     public static AtomicInteger scanned = new AtomicInteger(0);
     public static AtomicInteger found = new AtomicInteger(0);
@@ -81,10 +81,10 @@ public class App {
             } catch (NumberFormatException ignored) {
             }
         }
-        return 47; // default to 1.8.9 if we can't tell
+        return 47; //fallback
     }
 
-    // check if there's a minecraft server on this port
+    //attempt a minecraft server list ping handshake on a single port.
     public static void mcHandShake(String inputIp, int inputPort) {
         if (stopped)
             return;
@@ -96,7 +96,7 @@ public class App {
         }
 
         if (rawJson == null) {
-            // server didn't respond
+            //if server is offline
             if (!GUI.onlyPrintOnlineServers) {
                 synchronized (writerLock) {
                     if (writer != null)
@@ -105,7 +105,7 @@ public class App {
                 printOffline(inputIp, inputPort);
             }
         } else {
-            // got a response, server is online
+            //if server is online
             String serverInfo = mcServerInfo(rawJson);
             int detectedProtocol = parseProtocolVersion(rawJson);
             List<String> onlinePlayers = parsePlayerList(rawJson);
@@ -115,7 +115,7 @@ public class App {
                 BotJoiner.Result firstResult = BotJoiner.tryJoin(inputIp, inputPort, botName, detectedProtocol);
                 joinTag = buildJoinTag(firstResult);
 
-                // keep trying to join in the background at the rate the user set
+                //spawn a background thread to keep reattempting at the configured rate
                 if (GUI.attemptRateMs > 0) {
                     final String fIp = inputIp;
                     final int fPort = inputPort;
@@ -159,7 +159,7 @@ public class App {
         GUI.updateProgress(done, limit, found.get());
     }
 
-    // basic handshake logic adapted from a stackoverflow thread
+    //originally adapted from https://stackoverflow.com/q/30768091
     public static String internalMCHandShake(String inputIp, int inputPort) throws IOException {
         Socket socket = new Socket();
         socket.setSoTimeout(5000);
@@ -193,7 +193,8 @@ public class App {
                 json = new String(jsonBytes, StandardCharsets.UTF_8);
             }
 
-            // send ping/pong just in case, but ignore errors so it doesn't break the scan
+            //best effort ping/pong, some servers skip it never let it hide an online
+            //server
             try {
                 output.writeByte(0x09);
                 output.writeByte(0x01);
@@ -212,7 +213,7 @@ public class App {
     }
 
     public static void startProcess() throws InterruptedException, FileNotFoundException, UnsupportedEncodingException {
-        // wipe state for the new scan
+        //reset state
         stopped = false;
         scanned.set(0);
         found.set(0);
@@ -298,7 +299,7 @@ public class App {
             }
         }
 
-        latch.await(); // wait until everything finishes
+        latch.await(); //blocks background thread until all tasks r finished
         es.shutdown();
 
         long elapsed = (System.nanoTime() - start) / 1_000_000;
@@ -313,7 +314,7 @@ public class App {
         GUI.onScanComplete(found.get(), timeStamp);
     }
 
-    // prints the cool layout banner when starting
+    /** Prints a startup banner. */
     private static void printHeader() {
         synchronized (consoleLock) {
             System.out.println();
