@@ -16,7 +16,7 @@ public class App {
     public static long start;
     public static String timeStamp;
     public static volatile boolean stopped = false;
-    public static String botName = "Scanner_1337"; //randomised each scan
+    public static String botName = "Scanner_1337"; // randomised each scan
 
     public static AtomicInteger scanned = new AtomicInteger(0);
     public static AtomicInteger found = new AtomicInteger(0);
@@ -81,10 +81,10 @@ public class App {
             } catch (NumberFormatException ignored) {
             }
         }
-        return 47; //fallback
+        return 47; // fallback
     }
 
-    //attempt a minecraft server list ping handshake on a single port.
+    // Attempt a minecraft server list ping handshake on a single port.
     public static void mcHandShake(String inputIp, int inputPort) {
         if (stopped)
             return;
@@ -96,7 +96,7 @@ public class App {
         }
 
         if (rawJson == null) {
-            //if server is offline
+            // if server is offline
             if (!GUI.onlyPrintOnlineServers) {
                 synchronized (writerLock) {
                     if (writer != null)
@@ -105,7 +105,7 @@ public class App {
                 printOffline(inputIp, inputPort);
             }
         } else {
-            //if server is online
+            // if server is online
             String serverInfo = mcServerInfo(rawJson);
             int detectedProtocol = parseProtocolVersion(rawJson);
             List<String> onlinePlayers = parsePlayerList(rawJson);
@@ -159,7 +159,7 @@ public class App {
         GUI.updateProgress(done, limit, found.get());
     }
 
-    //originally adapted from https://stackoverflow.com/q/30768091
+    // originally adapted from https://stackoverflow.com/q/30768091
     public static String internalMCHandShake(String inputIp, int inputPort) throws IOException {
         Socket socket = new Socket();
         socket.setSoTimeout(5000);
@@ -193,8 +193,7 @@ public class App {
                 json = new String(jsonBytes, StandardCharsets.UTF_8);
             }
 
-            //best effort ping/pong, some servers skip it never let it hide an online
-            //server
+            // best effort ping/pong, some servers skip it never let it hide an online server
             try {
                 output.writeByte(0x09);
                 output.writeByte(0x01);
@@ -213,7 +212,7 @@ public class App {
     }
 
     public static void startProcess() throws InterruptedException, FileNotFoundException, UnsupportedEncodingException {
-        //reset state
+        // reset state
         stopped = false;
         scanned.set(0);
         found.set(0);
@@ -299,7 +298,7 @@ public class App {
             }
         }
 
-        latch.await(); //blocks background thread until all tasks r finished
+        latch.await(); // blocks background thread until all tasks r finished
         es.shutdown();
 
         long elapsed = (System.nanoTime() - start) / 1_000_000;

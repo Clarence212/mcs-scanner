@@ -32,7 +32,7 @@ public class BotJoiner {
         FAILED
     }
 
-    private static final int MAX_PLAY_PACKETS = 30; // give up after this many play packets
+    private static final int MAX_PLAY_PACKETS = 30; //give up after this many play packets
 
     public static Result tryJoin(String ip, int port, String botName, int protocolVersion) {
         Socket socket = new Socket();
@@ -53,11 +53,11 @@ public class BotJoiner {
             loginLoop: for (int i = 0; i < 15; i++) {
                 Packet p = readPacket(in, compressionThreshold);
                 switch (p.id) {
-                    case 0x02: // login Success
+                    case 0x02: //login Success
                         break loginLoop;
                     case 0x01:
                         return Result.ONLINE_MODE;
-                    case 0x00:// disconnect
+                    case 0x00://disconnect
                         return Result.REJECTED;
                     case 0x03:
                         compressionThreshold = readVarInt(p.data);
@@ -222,10 +222,11 @@ public class BotJoiner {
             dos.writeByte(0x00);
             writeString(dos, name);
             if (protocolVersion >= 759) {
-                // Offline-mode servers derive the player UUID as:
-                // UUID.nameUUIDFromBytes("OfflinePlayer:<name>".getBytes(UTF-8))
+                //Offline-mode servers derive the player UUID as:
+                //UUID.nameUUIDFromBytes("OfflinePlayer:<name>".getBytes(UTF-8))
 
-                // Sending zeros causes whitelist rejection even if the name is correct.
+                
+                //Sending zeros causes whitelist rejection even if the name is correct.
                 java.util.UUID offlineUUID = java.util.UUID.nameUUIDFromBytes(
                         ("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
                 dos.writeLong(offlineUUID.getMostSignificantBits());
@@ -250,7 +251,7 @@ public class BotJoiner {
         byte[] bytes = buildPacket(dos -> {
             dos.writeByte(0x04);
             writeString(dos, key);
-            dos.writeBoolean(false); // no payload
+            dos.writeBoolean(false); //no payload
         });
         sendPacket(out, bytes, compressionThreshold);
     }

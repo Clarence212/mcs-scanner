@@ -298,8 +298,8 @@ public class GUI {
                                 .toURI()
                 ).getAbsolutePath();
 
-                // Build a quoted command string so paths with spaces (e.g. C:\Program Files\...)
-                // are handled correctly when passed through cmd /k.
+                //Build a quoted command string so paths with spacesare handled correctly when passed through cmd /k
+                
                 String botArg = customBotName.isEmpty() ? "random" : customBotName;
                 String scanArgs = finalIpText
                         + " " + finalPortVal
