@@ -35,8 +35,8 @@ public class BotJoiner {
     public static Result tryJoin(String ip, int port, String botName, int protocolVersion) {
         Socket socket = new Socket();
         try {
-            socket.setSoTimeout(8000);
-            socket.connect(new InetSocketAddress(ip, port), 3000);
+            socket.setSoTimeout(3000);
+            socket.connect(new InetSocketAddress(ip, port), 1500);
 
             DataOutputStream out = new DataOutputStream(
                     new BufferedOutputStream(socket.getOutputStream()));
@@ -219,10 +219,16 @@ public class BotJoiner {
         byte[] bytes = buildPacket(dos -> {
             dos.writeByte(0x00);
             writeString(dos, name);
-            //we send a zeroed UUID which is accepted by offline mode servers
             if (protocolVersion >= 759) {
-                dos.writeLong(0L);
-                dos.writeLong(0L);
+                //Offline-mode servers derive the player UUID as:
+                //UUID.nameUUIDFromBytes("OfflinePlayer:<name>".getBytes(UTF-8))
+
+                
+                //Sending zeros causes whitelist rejection even if the name is correct.
+                java.util.UUID offlineUUID = java.util.UUID.nameUUIDFromBytes(
+                        ("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
+                dos.writeLong(offlineUUID.getMostSignificantBits());
+                dos.writeLong(offlineUUID.getLeastSignificantBits());
             }
         });
         writeVarInt(out, bytes.length);

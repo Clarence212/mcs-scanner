@@ -22,10 +22,15 @@ public class GUI {
     public static JCheckBox botJoinCB;
     private static JButton startButton;
     private static JComboBox<String> speedDropDown;
+    private static JTextField rateField;
+    private static JComboBox<String> rateUnitDropDown;
+    private static JTextField botNameField;
 
     public static String scanSpeed = "Fast";
     public static boolean onlyPrintOnlineServers = true;
     public static boolean attemptBotJoin = false;
+    public static long attemptRateMs = 1000;
+    public static String customBotName = "";
 
     public static void updateProgress(int done, int total, int foundCount) {
         if (scanProgress != null && statsLabel != null) {
@@ -85,7 +90,7 @@ public class GUI {
         buttonPanel.add(scanAgainButton);
         completionPanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        f.setSize(270, 205);
+        f.setSize(270, 238);
         f.setResizable(false);
         f.setLocationRelativeTo(null);
 
@@ -129,39 +134,68 @@ public class GUI {
         onlineCB.addItemListener(e -> onlyPrintOnlineServers = onlineCB.isSelected());
 
         botJoinCB = new JCheckBox("Attempt Bot Join");
-        botJoinCB.setBounds(2, 76, 175, 20);
+        botJoinCB.setBounds(2, 76, 135, 20);
         botJoinCB.setSelected(false);
         botJoinCB.setFocusable(false);
         botJoinCB.setOpaque(false);
-        botJoinCB
-                .setToolTipText("After finding an online server, try to log in as a bot (detects offline/online mode)");
-        botJoinCB.addItemListener(e -> attemptBotJoin = botJoinCB.isSelected());
+        botJoinCB.setToolTipText("After finding an online server, try to log in as a bot (detects offline/online mode)");
+        botJoinCB.addItemListener(e -> {
+            attemptBotJoin = botJoinCB.isSelected();
+            boolean on = botJoinCB.isSelected();
+            rateField.setEnabled(on);
+            rateField.setEditable(on);
+            rateUnitDropDown.setEnabled(on);
+            botNameField.setEnabled(on);
+            botNameField.setEditable(on);
+        });
+
+        botNameField = new JTextField();
+        botNameField.setBounds(138, 76, 124, 20);
+        botNameField.setEnabled(false);
+        botNameField.setEditable(false);
+        botNameField.setForeground(Color.LIGHT_GRAY);
+        botNameField.setToolTipText("Custom bot username (leave blank for random Bot_XXXX)");
+        addPlaceholder(botNameField, "Bot_XXXX (random)");
+
+        JLabel rateLabel = new JLabel("Rate:");
+        rateLabel.setBounds(2, 100, 38, 20);
+        rateField = new JTextField("1");
+        rateField.setBounds(40, 100, 50, 20);
+        rateField.setEditable(false);
+        rateField.setEnabled(false);
+        rateField.setToolTipText("How often to re-attempt joining a found server (enable Attempt Bot Join first)");
+        rateUnitDropDown = new JComboBox<>(new String[]{"ms", "sec", "min"});
+        rateUnitDropDown.setSelectedItem("sec");
+        rateUnitDropDown.setBounds(93, 100, 68, 20);
+        rateUnitDropDown.setFocusable(false);
+        rateUnitDropDown.setEnabled(false);
 
         JLabel speedLabel = new JLabel("Speed:");
-        speedLabel.setBounds(5, 100, 45, 18);
-        speedDropDown = new JComboBox<>(new String[] { "Medium", "Fast", "Very Fast", "Dangerous" });
+        speedLabel.setBounds(5, 124, 45, 18);
+        speedDropDown = new JComboBox<>(new String[]{"Medium", "Fast", "Very Fast", "Dangerous"});
         speedDropDown.setSelectedItem("Fast");
-        speedDropDown.setBounds(52, 100, 95, 18);
+        speedDropDown.setBounds(52, 124, 95, 18);
         speedDropDown.setFocusable(false);
 
         startButton = new JButton("Go!");
-        startButton.setBounds(185, 94, 72, 28);
+        startButton.setBounds(185, 118, 72, 28);
         startButton.setFocusable(false);
         startButton.addActionListener(this::onStartStop);
 
         scanProgress = new JProgressBar(0, 100);
-        scanProgress.setBounds(5, 124, 252, 18);
+        scanProgress.setBounds(5, 150, 252, 18);
         scanProgress.setString("Idle");
         scanProgress.setStringPainted(true);
 
         statsLabel = new JLabel("Ready.");
-        statsLabel.setBounds(5, 145, 252, 16);
+        statsLabel.setBounds(5, 172, 252, 16);
         statsLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
         statsLabel.setForeground(Color.DARK_GRAY);
 
-        for (Component c : new Component[] {
+        for (Component c : new Component[]{
                 ipLabel, ipBox, endPortLabel, endPortBox,
-                portLabel, portBox, onlineCB, botJoinCB,
+                portLabel, portBox, onlineCB, botJoinCB, botNameField,
+                rateLabel, rateField, rateUnitDropDown,
                 speedLabel, speedDropDown, startButton,
                 scanProgress, statsLabel
         })
@@ -217,6 +251,24 @@ public class GUI {
         onlyPrintOnlineServers = onlineCB.isSelected();
         scanSpeed = (String) speedDropDown.getSelectedItem();
         attemptBotJoin = botJoinCB.isSelected();
+        if (attemptBotJoin) {
+            String rateText = rateField.getText().trim();
+            try {
+                long rateVal = Long.parseLong(rateText);
+                if (rateVal <= 0) throw new NumberFormatException();
+                String unit = (String) rateUnitDropDown.getSelectedItem();
+                if ("ms".equals(unit))       attemptRateMs = rateVal;
+                else if ("sec".equals(unit)) attemptRateMs = rateVal * 1000L;
+                else if ("min".equals(unit)) attemptRateMs = rateVal * 60_000L;
+            } catch (NumberFormatException ignored) {
+                rateField.setBackground(new Color(255, 180, 180));
+                return;
+            }
+            String nameInput = botNameField.getText().trim();
+            customBotName = (nameInput.isEmpty() || nameInput.equals("Bot_XXXX (random)")) ? "" : nameInput;
+        } else {
+            customBotName = "";
+        }
 
         final String finalIpText = ipText;
         final int finalPortVal = portVal;
@@ -246,29 +298,25 @@ public class GUI {
                                 .toURI()
                 ).getAbsolutePath();
 
+                //Build a quoted command string so paths with spacesare handled correctly when passed through cmd /k
+                
+                String botArg = customBotName.isEmpty() ? "random" : customBotName;
+                String scanArgs = finalIpText
+                        + " " + finalPortVal
+                        + " " + finalEndPortVal
+                        + " " + finalScanSpeed
+                        + " " + finalOnlyPrintOnline
+                        + " " + finalAttemptBotJoin
+                        + " " + attemptRateMs
+                        + " " + botArg;
+
                 ProcessBuilder pb;
                 if (jarPath.endsWith(".jar")) {
-                    pb = new ProcessBuilder(
-                            "cmd",
-                            "/c",
-                            "start",
-                            "cmd",
-                            "/k",
-                            javaExe, "-jar", jarPath, "--scan",
-                            finalIpText, String.valueOf(finalPortVal), String.valueOf(finalEndPortVal),
-                            finalScanSpeed, String.valueOf(finalOnlyPrintOnline), String.valueOf(finalAttemptBotJoin)
-                    );
+                    String cmd = "\"" + javaExe + "\" -jar \"" + jarPath + "\" --scan " + scanArgs;
+                    pb = new ProcessBuilder("cmd", "/c", "start", "cmd", "/k", cmd);
                 } else {
-                    pb = new ProcessBuilder(
-                            "cmd",
-                            "/c",
-                            "start",
-                            "cmd",
-                            "/k",
-                            javaExe, "-cp", jarPath, "GUI", "--scan",
-                            finalIpText, String.valueOf(finalPortVal), String.valueOf(finalEndPortVal),
-                            finalScanSpeed, String.valueOf(finalOnlyPrintOnline), String.valueOf(finalAttemptBotJoin)
-                    );
+                    String cmd = "\"" + javaExe + "\" -cp \"" + jarPath + "\" GUI --scan " + scanArgs;
+                    pb = new ProcessBuilder("cmd", "/c", "start", "cmd", "/k", cmd);
                 }
 
                 activeProcess = pb.start();
@@ -307,6 +355,12 @@ public class GUI {
         onlineCB.setEnabled(enabled);
         botJoinCB.setEnabled(enabled);
         speedDropDown.setEnabled(enabled);
+        boolean botOn = enabled && botJoinCB.isSelected();
+        rateField.setEnabled(botOn);
+        rateField.setEditable(botOn);
+        rateUnitDropDown.setEnabled(botOn);
+        botNameField.setEnabled(botOn);
+        botNameField.setEditable(botOn);
     }
 
     private static void addPlaceholder(JTextField field, String placeholder) {
@@ -346,6 +400,8 @@ public class GUI {
                 scanSpeed = args[4];
                 onlyPrintOnlineServers = Boolean.parseBoolean(args[5]);
                 attemptBotJoin = Boolean.parseBoolean(args[6]);
+                if (args.length > 7) attemptRateMs = Long.parseLong(args[7]);
+                if (args.length > 8) customBotName = args[8].equals("random") ? "" : args[8];
 
                 App.startProcess();
             } catch (Exception e) {
